@@ -21,14 +21,17 @@ jobs:
       - name: 종목마스터 → docs/prices.json
         run: python3 scripts/build_prices.py docs/prices.json
 
+      - name: 종목별 종가 히스토리 갱신 (docs/history, 신규 종목만 네이버 백필)
+        run: python3 scripts/build_history.py --prices docs/prices.json --out docs/history
+
       - name: 변경 시 커밋 & 푸시
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/prices.json
+          git add docs/prices.json docs/history
           if git diff --cached --quiet; then
             echo "변경 없음 — 커밋하지 않습니다."
           else
-            git commit -m "prices: 종목마스터 갱신 ($(TZ=Asia/Seoul date +'%Y-%m-%d %H:%M KST'))"
+            git commit -m "prices: 종목마스터·히스토리 갱신 ($(TZ=Asia/Seoul date +'%Y-%m-%d %H:%M KST'))"
             git push
           fi

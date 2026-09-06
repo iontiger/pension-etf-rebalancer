@@ -89,7 +89,9 @@ npm test
 
 - `docs/index.html` — 모바일 우선 카드형 UI. 설정·보유수량은 브라우저 localStorage 에 저장 (JSON 내보내기/가져오기 지원)
 - `docs/prices.json` — ETF/ETN 전 종목 **전일 종가** (NH Plug 종목마스터, 인증 불필요). 우상단에 가격 기준일 표시
-- `.github/workflows/update-prices.yml` — **매일 08:50 KST** 에 `scripts/build_prices.py` 로 `prices.json` 갱신 후 커밋
+- `docs/history/{코드}.json` — 종목별 일별 종가(약 1년). 카드를 누르면 1주/1달/3달/1년 차트로 표시
+- `.github/workflows/update-prices.yml` — **매일 08:50 KST** 에 `scripts/build_prices.py`(전일종가) → `scripts/build_history.py`(히스토리에 하루 추가) 실행 후 커밋.
+  히스토리가 없는 신규 종목만 네이버 금융 일별 시세로 1년치를 백필하고, 그 외에는 외부 호출 없이 종목마스터 가격을 덧붙입니다.
 - 실시간 시세 새로고침, 계좌 잔고 불러오기는 없습니다. (브라우저에서 NH API 직접 호출은 CORS 로 차단되고, 키를 공개 페이지에 넣을 수도 없기 때문)
 
 ### 배포 방법
