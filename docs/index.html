@@ -73,10 +73,11 @@ small { color:var(--muted); }
 .kv span { color:var(--muted); } .kv b { white-space:nowrap; font-variant-numeric:tabular-nums; text-align:right; }
 .card-sub { font-size:11.5px; color:var(--muted); margin-top:2px; }
 .list { display:flex; flex-direction:column; gap:8px; }
-.etf { background:var(--panel); border:1.5px solid var(--line); border-radius:var(--radius); padding:12px; box-shadow:0 3px 12px rgba(20,30,60,.10); cursor:pointer; transition:transform .08s; }
-.etf:active { transform:scale(.99); }
+.etf { background:var(--panel); border:1.5px solid var(--line); border-radius:var(--radius); padding:12px; box-shadow:0 3px 12px rgba(20,30,60,.10); cursor:pointer; touch-action:manipulation; -webkit-user-select:none; user-select:none; }
+.etf:active { background:var(--ghost); }
+.btn, .tab, .period, .btn-x { touch-action:manipulation; }
 .etf.buy { border-color:var(--buy); } .etf.sell { border-color:var(--sell); }
-.etf .chev { font-size:11px; color:var(--muted); margin-left:6px; font-weight:500; }
+.etf .chev { font-size:11px; color:var(--primary); margin-left:6px; font-weight:700; background:none; border:0; padding:2px 4px; cursor:pointer; }
 .chart-periods { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:4px 0 10px; }
 .period { border:1px solid var(--line); background:var(--ghost); border-radius:9px; padding:8px 0; font-weight:700; color:var(--muted); min-height:0; }
 .period.active { background:var(--primary); color:var(--primary-ink); border-color:var(--primary); }
@@ -145,7 +146,7 @@ small { color:var(--muted); }
 .modal { position:fixed; inset:0; z-index:100; display:flex; align-items:flex-end; justify-content:center; }
 .modal[hidden] { display:none; }
 .modal-backdrop { position:absolute; inset:0; background:rgba(10,14,22,.55); }
-.modal-box { position:relative; width:100%; max-height:92vh; display:flex; flex-direction:column; background:var(--panel); border-radius:18px 18px 0 0; box-shadow:var(--shadow); border:1px solid var(--line); }
+.modal-box { position:relative; width:100%; max-height:88vh; max-height:88dvh; display:flex; flex-direction:column; background:var(--panel); border-radius:18px 18px 0 0; box-shadow:var(--shadow); border:1px solid var(--line); }
 @media (min-width:700px) { .modal { align-items:center; padding:16px; } .modal-box { width:min(720px,100%); border-radius:18px; } }
 .modal-head { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--line); }
 .modal-head h2 { margin:0; font-size:16px; }
@@ -613,12 +614,13 @@ small { color:var(--muted); }
       '<div class="card-sub">예수금 ' + fmtKRW(p.cash) + '<br>최대 이탈 ±' + fmtPct(plan.maxDeviation, 2).replace('%', '%p') + (p.settings.band > 0 ? ' · 밴드 ±' + p.settings.band + '%p' : '') + '</div>';
     $('#holdList').innerHTML = plan.rows.map(function (r) {
       var sug = r.action === 'BUY' ? '<span class="badge badge-buy">매수 ' + fmtNum(r.tradeQty) + '주</span>' : r.action === 'SELL' ? '<span class="badge badge-sell">매도 ' + fmtNum(r.tradeQty) + '주</span>' : '<span class="badge badge-hold">' + (r.reason ? esc(r.reason) : '유지') + '</span>';
-      return '<div class="etf ' + (r.action === 'BUY' ? 'buy' : r.action === 'SELL' ? 'sell' : '') + '" data-code="' + esc(r.code) + '" data-name="' + esc(r.name || r.code) + '"><div class="etf-head"><div class="etf-name">' + esc(r.name || r.code) + '<span class="code">' + esc(r.code) + '<span class="chev">차트 ›</span></span></div>' + sug + '</div>' +
+      return '<div class="etf ' + (r.action === 'BUY' ? 'buy' : r.action === 'SELL' ? 'sell' : '') + '" data-code="' + esc(r.code) + '" data-name="' + esc(r.name || r.code) + '"><div class="etf-head"><div class="etf-name">' + esc(r.name || r.code) + '<span class="code">' + esc(r.code) + '<button type="button" class="chev" data-chart="' + esc(r.code) + '">차트 ›</button></span></div>' + sug + '</div>' +
         '<div class="etf-grid"><div><label>종가</label><b>' + (r.priceMissing ? '<span class="stale">없음</span>' : fmtNum(r.price)) + '</b></div>' +
         '<div><label>보유</label><b>' + fmtNum(r.qty) + '주</b></div><div><label>평가</label><b>' + fmtNum(r.value) + '</b></div>' +
         '<div><label>비중 / 목표</label><b>' + fmtPct(r.curWeight) + ' / ' + fmtPct(r.weight) + '</b></div></div>' +
         barHtml(r.curWeight, r.weight) + '<div class="bar-txt"><span>차이 <span class="' + clsSign(r.deviation) + '">' + fmtSignedPct(r.deviation, 2) + '</span></span><span>목표금액 ' + fmtNum(r.targetValue) + '</span></div></div>';
     }).join('');
+    bindCards($('#holdList'));
     renderHistory();
   }
   function renderHistory() {
@@ -642,6 +644,15 @@ small { color:var(--muted); }
     }).join('');
     $('#investWarnings').innerHTML = plan.warnings.map(function (w) { return '<div class="warn-item">' + esc(w) + '</div>'; }).join('');
     $('#btnInvestApply').disabled = !(amount > 0 && plan.invested > 0);
+    bindCards($('#investList'));
+  }
+  /* 카드마다 클릭 리스너를 직접 붙인다. iOS Safari 는 document 위임만으로는 탭이 click 으로 전달되지 않을 때가 있음 */
+  function bindCards(root) {
+    $$('.etf[data-code]', root).forEach(function (el) {
+      el.setAttribute('role', 'button'); el.setAttribute('tabindex', '0');
+      el.addEventListener('click', function (e) { if (e.target.closest('a')) return; e.preventDefault(); openChart(el.dataset.code, el.dataset.name); });
+      el.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openChart(el.dataset.code, el.dataset.name); } });
+    });
   }
   function applyInvest() {
     var plan = state.investPlan; if (!plan || !plan.invested) return;
@@ -851,14 +862,16 @@ small { color:var(--muted); }
       '<a class="ext" href="https://m.stock.naver.com/domestic/stock/' + encodeURIComponent(chart.code) + '/total" target="_blank" rel="noopener">네이버 금융에서 자세히 보기 ›</a>';
   }
   async function openChart(code, name) {
-    chart.code = code; chart.name = name;
-    $('#chartTitle').textContent = name + ' (' + code + ')';
+    if (!code) return;
+    chart.code = code; chart.name = name || code;
+    $('#chartTitle').textContent = chart.name + ' (' + code + ')';
     $('#chartBody').innerHTML = '<div class="hint" style="padding:30px;text-align:center">차트 불러오는 중…</div>';
-    $('#chartModal').hidden = false; document.body.style.overflow = 'hidden';
+    $('#chartModal').hidden = false;
+    $('#chartModal .modal-body').scrollTop = 0;
     try { renderChart(await loadHistory(code)); }
     catch (e) { $('#chartBody').innerHTML = '<div class="warn-item">' + esc(e.message) + '</div><a class="ext" href="https://m.stock.naver.com/domestic/stock/' + encodeURIComponent(code) + '/total" target="_blank" rel="noopener">네이버 금융에서 차트 보기 ›</a>'; }
   }
-  function closeChart() { $('#chartModal').hidden = true; if ($('#modal').hidden) document.body.style.overflow = ''; }
+  function closeChart() { $('#chartModal').hidden = true; }
 
   // ------------------------------------------------ 탭/이벤트/초기화
   function switchTab(name) {
@@ -877,7 +890,6 @@ small { color:var(--muted); }
       if (!e.target.closest('.search')) $('#etfResults').hidden = true;
       var cl = e.target.closest('[data-close]'); if (cl) { if (cl.closest('#chartModal')) closeChart(); else closeModal(); }
       var pb = e.target.closest('.period[data-period]'); if (pb && chart.cache[chart.code]) { chart.period = pb.dataset.period; renderChart(chart.cache[chart.code]); }
-      var card = e.target.closest('.etf[data-code]'); if (card && !e.target.closest('a')) openChart(card.dataset.code, card.dataset.name);
     });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if (!$('#chartModal').hidden) closeChart(); else if (!$('#modal').hidden) closeModal(); } });
     $('#btnPlan').addEventListener('click', function () { openModal(Number($('#dashContribution').value) || 0); });
