@@ -66,7 +66,12 @@ small { color:var(--muted); }
 .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:12px; min-width:0; }
 .card-label { font-size:12px; color:var(--muted); }
 .card-value { font-size:18px; font-weight:800; margin-top:2px; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.total { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.total { background:var(--panel); border:1.5px solid var(--line); border-radius:var(--radius); padding:12px 14px; margin-bottom:12px; box-shadow:0 3px 12px rgba(20,30,60,.10); cursor:pointer; touch-action:manipulation; -webkit-user-select:none; user-select:none; }
+.total:active { background:var(--ghost); }
+.total-top { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.spark { margin-top:8px; border-top:1px dashed var(--line); padding-top:6px; }
+.spark svg { display:block; width:100%; height:54px; }
+.spark-txt { display:flex; justify-content:space-between; font-size:11.5px; color:var(--muted); margin-top:2px; }
 .total .card-value { font-size:22px; }
 .total .card-sub { text-align:right; line-height:1.5; }
 .kv { display:grid; grid-template-columns:1fr auto; gap:6px 12px; font-size:14px; margin:6px 0 10px; }
@@ -78,12 +83,16 @@ small { color:var(--muted); }
 .btn, .tab, .period, .btn-x { touch-action:manipulation; }
 .etf.buy { border-color:var(--buy); } .etf.sell { border-color:var(--sell); }
 .etf .chev { font-size:11px; color:var(--primary); margin-left:6px; font-weight:700; background:none; border:0; padding:2px 4px; cursor:pointer; }
-.chart-periods { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:4px 0 10px; }
+.chart-periods { display:grid; grid-template-columns:repeat(auto-fit, minmax(52px,1fr)); gap:6px; margin:4px 0 10px; }
+.legend { display:flex; gap:14px; font-size:11.5px; color:var(--muted); margin-top:6px; }
+.legend i { display:inline-block; width:16px; height:0; border-top:2px solid var(--primary); vertical-align:middle; margin-right:4px; }
+.legend i.dash { border-top:2px dashed var(--muted); }
 .period { border:1px solid var(--line); background:var(--ghost); border-radius:9px; padding:8px 0; font-weight:700; color:var(--muted); min-height:0; }
 .period.active { background:var(--primary); color:var(--primary-ink); border-color:var(--primary); }
 .chart-box { background:var(--bg); border:1px solid var(--line); border-radius:12px; padding:6px; }
 .chart-box svg { display:block; width:100%; height:220px; }
 .chart-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px; }
+.chart-stats.four { grid-template-columns:1fr 1fr; }
 .chart-stats div { background:var(--bg); border-radius:10px; padding:8px 10px; min-width:0; }
 .chart-stats label { display:block; font-size:11px; color:var(--muted); }
 .chart-stats b { display:block; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-variant-numeric:tabular-nums; }
@@ -610,8 +619,12 @@ small { color:var(--muted); }
     if (empty) return;
     var plan = currentPlan(Number($('#dashContribution').value) || 0);
     state.plan = plan;
-    $('#totalCard').innerHTML = '<div><div class="card-label">총자산 (평가+예수금)</div><div class="card-value">' + fmtKRW(plan.total) + '</div></div>' +
-      '<div class="card-sub">예수금 ' + fmtKRW(p.cash) + '<br>최대 이탈 ±' + fmtPct(plan.maxDeviation, 2).replace('%', '%p') + (p.settings.band > 0 ? ' · 밴드 ±' + p.settings.band + '%p' : '') + '</div>';
+    $('#totalCard').innerHTML = '<div class="total-top"><div><div class="card-label">총자산 (평가+예수금) <span class="chev">추이 ›</span></div><div class="card-value">' + fmtKRW(plan.total) + '</div></div>' +
+      '<div class="card-sub">예수금 ' + fmtKRW(p.cash) + '<br>최대 이탈 ±' + fmtPct(plan.maxDeviation, 2).replace('%', '%p') + (p.settings.band > 0 ? ' · 밴드 ±' + p.settings.band + '%p' : '') + '</div></div>' +
+      '<div class="spark" id="totalSpark" hidden></div>';
+    var tc = $('#totalCard');
+    if (!tc.dataset.bound) { tc.dataset.bound = '1'; tc.setAttribute('role', 'button'); tc.setAttribute('tabindex', '0'); tc.addEventListener('click', function () { openTotalChart(); }); tc.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTotalChart(); } }); }
+    updateSpark();
     $('#holdList').innerHTML = plan.rows.map(function (r) {
       var sug = r.action === 'BUY' ? '<span class="badge badge-buy">매수 ' + fmtNum(r.tradeQty) + '주</span>' : r.action === 'SELL' ? '<span class="badge badge-sell">매도 ' + fmtNum(r.tradeQty) + '주</span>' : '<span class="badge badge-hold">' + (r.reason ? esc(r.reason) : '유지') + '</span>';
       return '<div class="etf ' + (r.action === 'BUY' ? 'buy' : r.action === 'SELL' ? 'sell' : '') + '" data-code="' + esc(r.code) + '" data-name="' + esc(r.name || r.code) + '"><div class="etf-head"><div class="etf-name">' + esc(r.name || r.code) + '<span class="code">' + esc(r.code) + '<button type="button" class="chev" data-chart="' + esc(r.code) + '">차트 ›</button></span></div>' + sug + '</div>' +
@@ -817,14 +830,18 @@ small { color:var(--muted); }
     var res = await fetch('history/' + code + '.json?v=' + v);
     if (!res.ok) throw new Error(res.status === 404 ? '이 종목의 차트 데이터가 아직 없습니다. 다음 갱신(매일 08:50) 때 자동으로 추가됩니다.' : 'HTTP ' + res.status);
     var h = await res.json();
-    var pts = h.d.map(function (d, i) { return [d, h.c[i]]; }).filter(function (x) { return x[1] > 0; });
+    var baseYmd = state.prices && state.prices.baseDate ? state.prices.baseDate.replace(/-/g, '') : '99999999';
+    // 대시보드(종목마스터 기준일)와 같은 기준일까지만 사용해 숫자가 어긋나지 않게 한다
+    var pts = h.d.map(function (d, i) { return [d, h.c[i]]; }).filter(function (x) { return x[1] > 0 && x[0] <= baseYmd; });
     chart.cache[code] = pts;
     return pts;
   }
   function fmtYmd(d) { return d.slice(0, 4) + '.' + d.slice(4, 6) + '.' + d.slice(6, 8); }
-  function chartSvg(pts) {
-    var W = 640, H = 220, L = 8, Rr = 8, T = 14, B = 24, n = pts.length;
+  function chartSvg(pts, secondary, opts) {
+    opts = opts || {};
+    var W = 640, H = opts.height || 220, L = 8, Rr = 8, T = opts.mini ? 4 : 14, B = opts.mini ? 4 : 24, n = pts.length;
     var cs = pts.map(function (p) { return p[1]; }), min = Math.min.apply(null, cs), max = Math.max.apply(null, cs);
+    if (secondary && secondary.length) { min = Math.min(min, Math.min.apply(null, secondary)); max = Math.max(max, Math.max.apply(null, secondary)); }
     if (max === min) { max += 1; min -= 1; }
     var pad = (max - min) * 0.06; min -= pad; max += pad;
     var x = function (i) { return L + (n === 1 ? (W - L - Rr) / 2 : i / (n - 1) * (W - L - Rr)); }, y = function (c) { return T + (max - c) / (max - min) * (H - T - B); };
@@ -833,23 +850,40 @@ small { color:var(--muted); }
     var grid = [0.25, 0.5, 0.75].map(function (f) { var yy = T + f * (H - T - B); return '<line x1="' + L + '" x2="' + (W - Rr) + '" y1="' + yy.toFixed(1) + '" y2="' + yy.toFixed(1) + '" stroke="currentColor" stroke-opacity=".12" stroke-dasharray="3 4"/>'; }).join('');
     var iMax = cs.indexOf(Math.max.apply(null, cs)), iMin = cs.indexOf(Math.min.apply(null, cs));
     var lbl = function (i, c, above) { var xx = x(i), anchor = xx < 80 ? 'start' : xx > W - 80 ? 'end' : 'middle'; return '<text x="' + xx.toFixed(1) + '" y="' + (y(c) + (above ? -6 : 14)).toFixed(1) + '" font-size="11" text-anchor="' + anchor + '" fill="currentColor" fill-opacity=".7">' + fmtNum(c) + '</text>'; };
+    var gid = 'cg' + (opts.mini ? 'm' : 'f');
+    var sec = '';
+    if (secondary && secondary.length === n) {
+      sec = '<path d="' + secondary.map(function (v, i) { return (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1); }).join(' ') + '" fill="none" stroke="currentColor" stroke-opacity=".55" stroke-width="1.8" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"/>';
+    }
+    if (opts.mini) {
+      return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="color:var(--text)">' +
+        '<defs><linearGradient id="' + gid + '" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="' + col + '" stop-opacity=".25"/><stop offset="1" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs>' +
+        '<path d="' + d + ' L' + x(n - 1).toFixed(1) + ' ' + (H - B) + ' L' + x(0).toFixed(1) + ' ' + (H - B) + ' Z" fill="url(#' + gid + ')"/>' + sec +
+        '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>';
+    }
     return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="color:var(--text)">' +
-      '<defs><linearGradient id="cg" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="' + col + '" stop-opacity=".25"/><stop offset="1" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs>' + grid +
-      '<path d="' + d + ' L' + x(n - 1).toFixed(1) + ' ' + (H - B) + ' L' + x(0).toFixed(1) + ' ' + (H - B) + ' Z" fill="url(#cg)"/>' +
+      '<defs><linearGradient id="' + gid + '" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="' + col + '" stop-opacity=".25"/><stop offset="1" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs>' + grid +
+      '<path d="' + d + ' L' + x(n - 1).toFixed(1) + ' ' + (H - B) + ' L' + x(0).toFixed(1) + ' ' + (H - B) + ' Z" fill="url(#' + gid + ')"/>' + sec +
       '<path d="' + d + '" fill="none" stroke="' + col + '" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>' +
       '<circle cx="' + x(n - 1).toFixed(1) + '" cy="' + y(cs[n - 1]).toFixed(1) + '" r="4" fill="' + col + '"/>' +
       lbl(iMax, cs[iMax], true) + lbl(iMin, cs[iMin], false) +
       '<text x="' + L + '" y="' + (H - 6) + '" font-size="11" fill="currentColor" fill-opacity=".6">' + fmtYmd(pts[0][0]) + '</text>' +
       '<text x="' + (W - Rr) + '" y="' + (H - 6) + '" font-size="11" text-anchor="end" fill="currentColor" fill-opacity=".6">' + fmtYmd(pts[n - 1][0]) + '</text></svg>';
   }
-  function renderChart(all) {
-    var P = PERIODS.find(function (p) { return p[0] === chart.period; }) || PERIODS[1];
+  /* 기간별 슬라이스: 마지막 날짜 기준 N일 */
+  function slicePeriod(all, periodKey, periods) {
+    var P = (periods || PERIODS).find(function (p) { return p[0] === periodKey; }) || PERIODS[1];
+    if (P[2] >= 100000) return all.slice();
     var last = all[all.length - 1][0];
     var lastDate = new Date(last.slice(0, 4), Number(last.slice(4, 6)) - 1, last.slice(6, 8));
     var start = new Date(lastDate.getTime() - P[2] * 86400000);
     var sd = start.getFullYear() + String(start.getMonth() + 1).padStart(2, '0') + String(start.getDate()).padStart(2, '0');
     var pts = all.filter(function (p) { return p[0] >= sd; });
-    if (pts.length < 2) pts = all.slice(-2);
+    return pts.length < 2 ? all.slice(-2) : pts;
+  }
+  function renderChart(all) {
+    chart.mode = 'etf';
+    var pts = slicePeriod(all, chart.period);
     var first = pts[0][1], lastC = pts[pts.length - 1][1], chg = lastC - first, rate = first ? chg / first * 100 : 0;
     var cs = pts.map(function (p) { return p[1]; });
     var cls = chg > 0 ? 'up' : chg < 0 ? 'down' : '';
@@ -863,7 +897,7 @@ small { color:var(--muted); }
   }
   async function openChart(code, name) {
     if (!code) return;
-    chart.code = code; chart.name = name || code;
+    chart.mode = 'etf'; chart.code = code; chart.name = name || code;
     $('#chartTitle').textContent = chart.name + ' (' + code + ')';
     $('#chartBody').innerHTML = '<div class="hint" style="padding:30px;text-align:center">차트 불러오는 중…</div>';
     $('#chartModal').hidden = false;
@@ -872,6 +906,101 @@ small { color:var(--muted); }
     catch (e) { $('#chartBody').innerHTML = '<div class="warn-item">' + esc(e.message) + '</div><a class="ext" href="https://m.stock.naver.com/domestic/stock/' + encodeURIComponent(code) + '/total" target="_blank" rel="noopener">네이버 금융에서 차트 보기 ›</a>'; }
   }
   function closeChart() { $('#chartModal').hidden = true; }
+
+  // ------------------------------------------------ 총자산 추이 (거래 기록으로 날짜별 보유상태 재구성 × 일별 종가)
+  var TOTAL_PERIODS = PERIODS.concat([['all', '전체', 100000]]);
+  var totalCache = { key: '', data: null };
+  function kstYmd(iso) { var d = new Date(iso); if (isNaN(d)) return null; var k = new Date(d.getTime() + 9 * 3600000); return k.getUTCFullYear() + String(k.getUTCMonth() + 1).padStart(2, '0') + String(k.getUTCDate()).padStart(2, '0'); }
+  async function buildTotalSeries() {
+    var pf = state.pf, codes = pf.items.map(function (i) { return i.code; });
+    var key = JSON.stringify([codes, pf.items.map(function (i) { return i.qty; }), pf.cash, (pf.history || []).length, state.prices && state.prices.baseDate]);
+    if (totalCache.key === key && totalCache.data) return totalCache.data;
+    if (!codes.length) return { pts: [], flows: {}, hasEvents: false, note: '등록된 ETF가 없습니다.' };
+    var hists = await Promise.all(codes.map(function (c) { return loadHistory(c).catch(function () { return []; }); }));
+    var priceMaps = {}, dateSet = {};
+    codes.forEach(function (c, i) { var m = {}; hists[i].forEach(function (p) { m[p[0]] = p[1]; dateSet[p[0]] = 1; }); priceMaps[c] = m; });
+    var dates = Object.keys(dateSet).sort();
+    if (!dates.length) return { pts: [], flows: {}, hasEvents: false, note: '가격 히스토리가 없습니다.' };
+    var events = (pf.history || []).map(function (h) { return { date: kstYmd(h.at), h: h }; }).filter(function (e) { return e.date; })
+      .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    // 현재 상태에서 이벤트를 거꾸로 되돌리며 구간별 보유상태 계산
+    var after = { qty: {}, cash: pf.cash };
+    pf.items.forEach(function (i) { after.qty[i.code] = i.qty; });
+    var segs = [];
+    for (var k = events.length - 1; k >= 0; k--) {
+      var ev = events[k].h, before = { qty: Object.assign({}, after.qty), cash: after.cash }, buy = 0, sell = 0;
+      (ev.trades || []).forEach(function (t) {
+        var q = Number(t.qty) || 0, p = Number(t.price) || 0;
+        if (t.action === 'BUY') { before.qty[t.code] = (before.qty[t.code] || 0) - q; buy += q * p; }
+        else { before.qty[t.code] = (before.qty[t.code] || 0) + q; sell += q * p; }
+      });
+      var contrib = ev.type === 'invest' ? (Number(ev.amount) || 0) : (Number(ev.contribution) || 0);
+      before.cash = Math.max(0, after.cash - contrib - sell + buy);
+      segs.unshift({ from: events[k].date, qty: after.qty, cash: after.cash, contrib: contrib });
+      after = before;
+    }
+    segs.unshift({ from: '00000000', qty: after.qty, cash: after.cash, contrib: 0 });
+    var last = {}, pts = [], si = 0;
+    dates.forEach(function (d) {
+      while (si + 1 < segs.length && segs[si + 1].from <= d) si++;
+      var s = segs[si], total = s.cash;
+      codes.forEach(function (c) { var p = priceMaps[c][d]; if (p) last[c] = p; var q = Math.max(0, s.qty[c] || 0); if (q && last[c]) total += q * last[c]; });
+      pts.push([d, Math.round(total)]);
+    });
+    var first = -1; for (var i = 0; i < pts.length; i++) { if (pts[i][1] > 0) { first = i; break; } }
+    pts = first < 0 ? [] : pts.slice(first);
+    var flows = {}; segs.slice(1).forEach(function (s) { flows[s.from] = (flows[s.from] || 0) + s.contrib; });
+    var data = { pts: pts, flows: flows, hasEvents: events.length > 0, note: pts.length ? '' : '보유수량과 예수금이 없어 추이를 계산할 수 없습니다.' };
+    totalCache = { key: key, data: data };
+    return data;
+  }
+  /* 기간 시작 평가액 + 이후 순투입 = 투입 원금선 */
+  function principalSeries(pts, flows) {
+    var acc = pts[0][1], out = [];
+    for (var i = 0; i < pts.length; i++) {
+      if (i > 0) { var prev = pts[i - 1][0], cur = pts[i][0]; Object.keys(flows).forEach(function (d) { if (d > prev && d <= cur) acc += flows[d]; }); }
+      out.push(acc);
+    }
+    return out;
+  }
+  async function updateSpark() {
+    var el = $('#totalSpark'); if (!el) return;
+    try {
+      var data = await buildTotalSeries();
+      var el2 = $('#totalSpark'); if (!el2) return;
+      if (data.pts.length < 2) { el2.hidden = true; return; }
+      var pts = slicePeriod(data.pts, '1m', TOTAL_PERIODS), prin = principalSeries(pts, data.flows);
+      var chg = pts[pts.length - 1][1] - prin[prin.length - 1], rate = prin[prin.length - 1] ? chg / prin[prin.length - 1] * 100 : 0;
+      el2.innerHTML = chartSvg(pts, data.hasEvents ? prin : null, { mini: true, height: 54 }) +
+        '<div class="spark-txt"><span>최근 1달 추이 · 탭하면 자세히</span><span class="' + (chg > 0 ? 'up' : chg < 0 ? 'down' : '') + '">' + (chg > 0 ? '+' : '') + fmtNum(chg) + '원 (' + (rate > 0 ? '+' : '') + rate.toFixed(2) + '%)</span></div>';
+      el2.hidden = false;
+    } catch (e) { console.warn(e); }
+  }
+  async function openTotalChart() {
+    chart.mode = 'total'; chart.code = '__total__';
+    if (!TOTAL_PERIODS.some(function (p) { return p[0] === chart.period; })) chart.period = '1m';
+    $('#chartTitle').textContent = '총자산 추이';
+    $('#chartBody').innerHTML = '<div class="hint" style="padding:30px;text-align:center">계산 중…</div>';
+    $('#chartModal').hidden = false; $('#chartModal .modal-body').scrollTop = 0;
+    try { var data = await buildTotalSeries(); chart.cache.__total__ = data; renderTotalChart(); }
+    catch (e) { $('#chartBody').innerHTML = '<div class="warn-item">' + esc(e.message) + '</div>'; }
+  }
+  function renderTotalChart() {
+    var data = chart.cache.__total__;
+    if (!data || data.pts.length < 2) { $('#chartBody').innerHTML = '<div class="warn-item">' + esc((data && data.note) || '추이를 그릴 데이터가 부족합니다.') + '</div>'; return; }
+    var pts = slicePeriod(data.pts, chart.period, TOTAL_PERIODS), prin = principalSeries(pts, data.flows);
+    var lastV = pts[pts.length - 1][1], prinLast = prin[prin.length - 1], pnl = lastV - prinLast, rate = prinLast ? pnl / prinLast * 100 : 0;
+    var inflow = prinLast - pts[0][1], cls = pnl > 0 ? 'up' : pnl < 0 ? 'down' : '';
+    var vals = pts.map(function (p) { return p[1]; });
+    $('#chartBody').innerHTML =
+      '<div class="chart-head">' + fmtKRW(lastV) + '<small class="' + cls + '">' + (pnl > 0 ? '▲' : pnl < 0 ? '▼' : '') + fmtNum(Math.abs(pnl)) + '원 (' + (rate > 0 ? '+' : '') + rate.toFixed(2) + '%)</small></div>' +
+      '<div class="plan-meta">' + fmtYmd(pts[0][0]) + ' ~ ' + fmtYmd(pts[pts.length - 1][0]) + ' · ' + pts.length + '거래일 · 손익은 기간 시작 평가액 + 순투입(원금) 대비</div>' +
+      '<div class="chart-periods">' + TOTAL_PERIODS.map(function (p) { return '<button type="button" class="period' + (p[0] === chart.period ? ' active' : '') + '" data-period="' + p[0] + '">' + p[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="chart-box">' + chartSvg(pts, data.hasEvents ? prin : null) + '</div>' +
+      (data.hasEvents ? '<div class="legend"><span><i></i>총자산</span><span><i class="dash"></i>투입 원금</span></div>' : '') +
+      '<div class="chart-stats four"><div><label>기간 시작 평가액</label><b>' + fmtKRW(pts[0][1]) + '</b></div><div><label>기간 순투입</label><b>' + fmtKRW(inflow) + '</b></div><div><label>기간 최고</label><b>' + fmtKRW(Math.max.apply(null, vals)) + '</b></div><div><label>기간 최저</label><b>' + fmtKRW(Math.min.apply(null, vals)) + '</b></div></div>' +
+      '<p class="hint">' + (data.hasEvents ? '앱에 기록된 거래(신규 투입·리밸런싱)를 기준으로 날짜별 보유수량을 되짚어 계산합니다. 설정에서 수량을 직접 고친 부분은 반영되지 않을 수 있습니다.' : '거래 기록이 없어 현재 보유수량을 과거 종가로 환산한 추이입니다.') + '</p>';
+  }
 
   // ------------------------------------------------ 탭/이벤트/초기화
   function switchTab(name) {
@@ -889,7 +1018,7 @@ small { color:var(--muted); }
       var si = e.target.closest('.search-item[data-code]'); if (si) addItem(si.dataset.code, si.dataset.name);
       if (!e.target.closest('.search')) $('#etfResults').hidden = true;
       var cl = e.target.closest('[data-close]'); if (cl) { if (cl.closest('#chartModal')) closeChart(); else closeModal(); }
-      var pb = e.target.closest('.period[data-period]'); if (pb && chart.cache[chart.code]) { chart.period = pb.dataset.period; renderChart(chart.cache[chart.code]); }
+      var pb = e.target.closest('.period[data-period]'); if (pb && chart.cache[chart.code]) { chart.period = pb.dataset.period; if (chart.mode === 'total') renderTotalChart(); else renderChart(chart.cache[chart.code]); }
     });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { if (!$('#chartModal').hidden) closeChart(); else if (!$('#modal').hidden) closeModal(); } });
     $('#btnPlan').addEventListener('click', function () { openModal(Number($('#dashContribution').value) || 0); });
