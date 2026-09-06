@@ -1,0 +1,34 @@
+name: Update ETF prices (NH Plug 종목마스터)
+
+on:
+  schedule:
+    - cron: '50 23 * * *'   # 매일 08:50 KST (= 전날 23:50 UTC). GitHub 사정으로 몇 분 지연될 수 있음
+  workflow_dispatch:        # Actions 탭에서 수동 실행 가능
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-prices
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 종목마스터 → docs/prices.json
+        run: python3 scripts/build_prices.py docs/prices.json
+
+      - name: 변경 시 커밋 & 푸시
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/prices.json
+          if git diff --cached --quiet; then
+            echo "변경 없음 — 커밋하지 않습니다."
+          else
+            git commit -m "prices: 종목마스터 갱신 ($(TZ=Asia/Seoul date +'%Y-%m-%d %H:%M KST'))"
+            git push
+          fi
